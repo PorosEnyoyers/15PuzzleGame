@@ -1,12 +1,7 @@
-constexpr int g_consoleLines{ 25 };
-
 #include <iostream>
 #include <array>
 #include <functional>
-#include <algorithm>
-#include <numeric>
 #include "Random.h"
-
 class Direction
 {
 public:
@@ -27,20 +22,20 @@ public:
         m_direction{ t }
     {
     }
-    Type operator-(const Direction& d)
+    Direction operator-()
     {
-        switch (d.m_direction)
+        switch (m_direction)
         {
         case (Type::up):
-            return Type::down;
+            return Direction {Type::down};
         case (Type::down):
-            return Type::up;
+            return Direction { Type::up };
         case (Type::left):
-            return Type::right;
+            return Direction { Type::right };
         case (Type::right):
-            return Type::left;
+            return Direction { Type::left };
         default:
-            return d.m_direction;
+            return Direction{ Type::maxDirections };
         }
     }
     friend std::ostream& operator<< (std::ostream& out, const Direction& d)
@@ -74,11 +69,13 @@ namespace Settings
     constexpr const std::size_t boardRow{ 4 };
     constexpr const std::size_t boardCol{ 4 };
     constexpr const std::size_t boardTiles{ boardRow * boardCol };
-    void generateRandomDirection()
+    Direction generateRandomDirection()
     {
         Direction temp{ static_cast<Direction::Type>(Random::get(0, 3)) };
-        std::cout << "Genrnerating random direction... " << temp << '\n';
+        return temp;
     }
+    static bool quitGame{ false };
+    constexpr int g_consoleLines{ 25 };
 }
 
 template <typename T, std::size_t Row, std::size_t Col>
@@ -131,13 +128,19 @@ public:
         m_tileInfo = x;
         return *this;
     }
-    Tile& operator=(Tile& tile)
+    Tile& operator=(const Tile& tile)
     {
         m_tileInfo = tile.m_tileInfo;
         return *this;
     }
+    friend bool operator==(Tile& tile, int x)
+    {
+        return (tile.m_tileInfo == x);
+    } 
     bool isEmpty() { return (m_tileInfo == 0); }
     int getNum() { return m_tileInfo; }
+
+    operator int() const { return m_tileInfo; }
 };
 
 class Point
@@ -174,8 +177,9 @@ public:
     {
         return !(p1 == p2);
     }
-};
 
+    std::pair<int, int> getPoint(){ return m_point; }
+};
 class Board
 {
 private:
@@ -194,7 +198,7 @@ public:
     }
     friend std::ostream& operator<<(std::ostream& out, const Board& board)
     {
-        for (int i = 0; i < g_consoleLines; ++i)
+        for (int i = 0; i < Settings::g_consoleLines; ++i)
         {
             out << '\n';
         }
@@ -210,8 +214,64 @@ public:
     }
     void setExitTrue(){ m_exit = true; }
     bool getExit() { return m_exit; }
-};
+    bool isPointValid(Point p)
+    {
+        if ( p.getPoint().first < 0 || p.getPoint().second < 0 || p.getPoint().first > 3 || p.getPoint().second > 3)
+        {
+            return false;
+        }
+        return true;
+    }
+    Point emptyTileLocal()
+    {
+        for (int row{ 0 }; row < m_arrView.rows(); ++row)
+        {
+            for (int col{ 0 }; col < m_arrView.cols(); ++col)
+            {
+                if (m_arrView(row, col) == 0)
+                    return Point{ col,row };
+            }
+        }
+        return Point{ 0,0 };
+    }
+    void swapTile(Point a, Point b)
+    {
+        std::swap(m_arrView(a.getPoint().second, a.getPoint().first), m_arrView(b.getPoint().second, b.getPoint().first));
+    }
 
+    bool moveTile(Direction d)
+    {
+        Point emptyTile{ emptyTileLocal() };
+        Point adjTile{ emptyTile.getAdjacentPoint(-d) };
+        if(!(isPointValid(adjTile)))
+        {
+            return false;
+        }
+        swapTile(emptyTile, adjTile);
+        return true;
+    }
+    void randomize()
+    {
+        for (int i{ 0 }; i < 10000; ++i)
+        {
+            Direction temp{ Settings::generateRandomDirection() };
+            (void)bool{ moveTile(temp) };
+        }
+    }
+    friend bool operator==(const Board& b1, const Board& b2)
+    {
+        for (int i{ 0 }; i < Settings::boardTiles; i++)
+        {
+            if (b1.m_arrView[i] != b2.m_arrView[i])
+                return false;
+        }
+        return true;
+    }
+    bool won(const Board& b)
+    {
+        return(*this == b);
+    }
+};
 namespace UserInput
 {
     void ignoreLine()
@@ -234,27 +294,23 @@ namespace UserInput
     {
         return(((!std::cin.eof())) && (std::cin.peek() != '\n'));
     }
-    void convertToDirection(char c)
+    Direction convertToDirection(char c)
     {
         switch (c)
         {
         case 'w':
-            std::cout << "You entered direction: " << Direction{Direction::Type::up} << '\n';
-            return;
+            return { Direction::up };
         case 'a':
-            std::cout << "You entered direction: " << Direction{ Direction::Type::left } << '\n';
-            return;
+            return { Direction::left };
         case 's':
-            std::cout << "You entered direction: " << Direction{ Direction::Type::down } << '\n';
-            return;
+            return { Direction::down };
         case 'd':
-            std::cout << "You entered direction: " << Direction{ Direction::Type::right } << '\n';
-            return;
+            return { Direction::right };
         default:
-            return;
+            return { Direction::maxDirections };
         }
     }
-    char getUserInput( Board& b)
+    Direction getUserDirection()
     {
         while(true)
         {
@@ -265,31 +321,36 @@ namespace UserInput
                 ignoreLine();
                 continue;
             }
-            convertToDirection(temp);
             if (temp == 'q')
             {
-                std::cout << "\n\n\n\n" << "Bye!\n\n\n\n";
-                b.setExitTrue();
-                return temp;
+                Settings::quitGame = true;
+                return { Direction::maxDirections };
             }
+            Direction dir{convertToDirection(temp)};;
+            return dir;
         }
     }
 }
-
 int main()
 {
     Board board{};
-    std::cout << board;
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-    Settings::generateRandomDirection();
-
-    std::cout << "\n\nEnter a command: ";
-    (void)UserInput::getUserInput(board);
-
+    board.randomize();
+    Board solvedBoard{};
+    while((!(board.won(solvedBoard)) && !(Settings::quitGame)))
+    {
+        std::cout << board;
+        Direction userDirection{ UserInput::getUserDirection() };
+        if (board.moveTile(userDirection))
+        {
+            continue;
+        }
+        continue;
+    }
+    if (Settings::quitGame)
+    {
+        std::cout << "Bye!!!";
+        return 0;
+    }
+    std::cout << "\n\n\n\nYou won!!! Congrats!!!\n\n\n";
     return 0;
 }
