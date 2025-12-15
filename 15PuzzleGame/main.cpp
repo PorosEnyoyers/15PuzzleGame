@@ -123,11 +123,6 @@ public:
             out << " " << tile.m_tileInfo << " ";
         return out;
     }
-    Tile& operator=(int x)
-    {
-        m_tileInfo = x;
-        return *this;
-    }
     Tile& operator=(const Tile& tile)
     {
         m_tileInfo = tile.m_tileInfo;
