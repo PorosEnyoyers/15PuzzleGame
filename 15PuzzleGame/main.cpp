@@ -140,6 +140,42 @@ public:
     int getNum() { return m_tileInfo; }
 };
 
+class Point
+{
+private:
+    std::pair<int, int> m_point{};
+
+public:
+    Point(int row, int col) :
+        m_point{ row, col }
+    {
+    }
+    Point getAdjacentPoint(Direction d)
+    {
+        switch (d.getDirection())
+        {
+        case(Direction::up):
+            return { m_point.first, m_point.second - 1 };
+        case(Direction::down):
+            return { m_point.first, m_point.second + 1 };
+        case(Direction::left):
+            return { m_point.first - 1, m_point.second };
+        case(Direction::right):
+            return { m_point.first + 1, m_point.second };
+        default:
+            return { m_point.first, m_point.second };
+        }
+    }
+    friend bool operator==(const Point& p1, const Point& p2)
+    {
+        return (p1.m_point.first == p2.m_point.first) && (p1.m_point.second == p2.m_point.second);
+    }
+    friend bool operator!=(const Point& p1, const Point& p2)
+    {
+        return !(p1 == p2);
+    }
+};
+
 class Board
 {
 private:
@@ -239,42 +275,6 @@ namespace UserInput
         }
     }
 }
-
-class Point
-{
-private:
-    std::pair<int,int> m_point{};
-    
-public:
-    Point(int row, int col) :
-        m_point{ row, col }
-    {
-    }
-    Point getAdjacentPoint(Direction d)
-    {
-        switch (d.getDirection())
-        {
-        case(Direction::up):
-               return { m_point.first, m_point.second - 1 };
-        case(Direction::down):
-            return { m_point.first, m_point.second + 1 };
-        case(Direction::left):
-            return { m_point.first - 1, m_point.second };
-        case(Direction::right):
-            return { m_point.first + 1, m_point.second };
-        default:
-            return { m_point.first, m_point.second };
-        }
-    }
-    friend bool operator==(const Point& p1, const Point& p2)
-    {
-        return (p1.m_point.first == p2.m_point.first) && (p1.m_point.second == p2.m_point.second);
-    }
-    friend bool operator!=(const Point& p1, const Point& p2)
-    {
-        return !(p1 == p2);
-    }
-};
 
 int main()
 {
